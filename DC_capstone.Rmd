@@ -1,0 +1,242 @@
+---
+title: "Data Science Capstone Project"
+author: "MB"
+date: "March 17, 2015"
+output: html_document
+---
+
+This is the capstone project of the Coursera Data Science specilization,
+which aim is a model to predict the most probable word after
+a set of 2 or 3 words. The model calculates the most probable word
+based on sentences takne from
+- blogs
+- news
+- twitter
+
+```{r echo=FALSE}
+setwd("/homebasel/biocomp/berreram")
+library(stringr)
+```
+
+## Filtering data
+In this section, sentences from blogs are used to instruct the model.
+
+First, all upper case characters are converted to lower case:
+in fact, the model proposed an upper case word if it is the
+first word of a sentence. In addition, names of persons or places
+are not in the scope of this predictor,
+which is aimed at predicting common frequent words.
+
+Then, all english-specific compressions, such as isn't or gonna, are expanded.
+
+Similarly, technology-related words, like e-mail or i-phone,
+are converted to the compact for, like email and iphone.
+
+Finally, numers are removed, still because we want to predict words.
+
+```{r, echo=FALSE, cache=TRUE}
+parse_text <- function (infile) {
+  f <- file(infile, open="r")
+  line<-readLines(f, n = -1, warn = FALSE)
+
+  line <- tolower(line)
+
+  line <- str_replace_all (line, "\\bit['’]s\\b", " it is ")
+  line <- str_replace_all (line, "\\bim\\b", " i am ")
+  line <- str_replace_all (line, "\\bdidnt\\b", " did not ")
+  line <- str_replace_all (line, "\\bwhat['’]s\\b", " what is ")
+  line <- str_replace_all (line, "\\bwhere['’]s\\b", " where is ")
+  line <- str_replace_all (line, "\\bdont\\b", " do not ")
+  line <- str_replace_all (line, "\\bdoesnt\\b", " does not ")
+  line <- str_replace_all (line, "\\bgonna\\b", " going to ")
+  line <- str_replace_all (line, "\\bwanna\\b", " want to ")
+  line <- str_replace_all (line, "\\bgotta\\b", " have got to ")
+
+  line <- str_replace_all (line, "['’]s\\b", " ")
+
+  line <- str_replace_all (line, "['’]ve\\b", " have ")
+  line <- str_replace_all (line, "['’]ll\\b", " will ")
+  line <- str_replace_all (line, "['’]d\\b", " would ")
+  line <- str_replace_all (line, "['’]m\\b", " am ")
+  line <- str_replace_all (line, "['’]re\\b", " are ")
+  line <- str_replace_all (line, "n['’]t\\b", " not ")
+
+  line <- str_replace_all (line, "\\be-", " e")
+  line <- str_replace_all (line, "\\bi-", " i")
+
+  line <- str_replace_all (line, "\\W", " ")
+  line <- str_replace_all (line, "_", " ")
+  line <- str_replace_all (line, "\\s+", " ")
+
+  line <- str_replace_all (line, "\\S*\\d+\\S*", " ")
+
+  line <- str_replace_all (line, "\\b[qwertyuopsdfghjklzxcvbnm]\\b", " ")
+
+  line <- str_replace_all (line, "^ +", "")
+  line <- str_replace_all (line, " +$", "")
+  line <- str_replace_all (line, "  +", " ")
+  
+  close (f)
+  
+  return (line)
+}
+
+fileNames <- c("en_US.blogs.txt", "en_US.news.txt", "en_US.twitter.txt")
+line_b <- parse_text (fileNames[1])
+line_n <- parse_text (fileNames[2])
+line_t <- parse_text (fileNames[3])
+```
+
+## Tokenization
+Words are separated now by blanks,
+so sentenses are tokenized into words using blanks are separators.
+
+```{r, echo=FALSE, cache=TRUE}
+token_b <- strsplit(line_b," ")
+total_token_b <- length (unlist (token_b))
+token_n <- strsplit(line_n," ")
+total_token_n <- length (unlist (token_n))
+token_t <- strsplit(line_t," ")
+total_token_t <- length (unlist (token_t))
+```
+
+## Words frequency
+The frequency of each word is calculated
+and the 100 most frequent words are listed:
+
+In blogs:
+
+```{r}
+counts_b <- table (unlist (token_b))
+unique_token_b <- dim (counts_b)
+head (sort (counts_b, decr=T), n=100)
+```
+
+In news:
+
+```{r}
+counts_n <- table (unlist (token_n))
+unique_token_n <- dim (counts_n)
+head (sort (counts_n, decr=T), n=100)
+```
+
+In twitter:
+
+```{r}
+counts_t <- table (unlist (token_t))
+unique_token_t <- dim (counts_t)
+head (sort (counts_t, decr=T), n=100)
+```
+
+Not surprisingly, they are all very common words
+and the most frequent is 'the'.
+
+## English words
+All words obtained after tokenizing are checked in an english dictionary
+to make sure they are properly spelled english words.
+
+```{r, echo=FALSE}
+vocabul_http <- "http://www-01.sil.org/linguistics/wordlists/english/wordlist/wordsEn.txt"
+vocabul <- tolower(as.character(read.table(vocabul_http)$V1))
+vocabul <- c(vocabul, "i")
+total_vocabul <- length (unlist (vocabul))
+```
+
+### Profanity filtering
+Profanity filtering is implicit in limiting the model to words that are
+present in the vocabulary, assuming of course that the vocabulary is fair...
+
+### Words not in the vocabulary
+The words not in the vocabulary can be non-english words,
+misspelled words,
+names of persons or places.
+The most frequent words not in the vocabulry are shown here,
+to estimate what is the most relevant source of error
+that is introduced by ignoring them.
+
+```{r}
+unknown<- table(subset(unlist(token), !(unlist(token) %in% vocabul)))
+unique_notvocab <- dim (unknown)
+head (sort (unknown, de=T), n=100)
+```
+
+The most frequent words not in vocabulary are technology related
+and the following words are either typos or names of people or,
+less frequent, companies.
+
+### Expanding the vocabulary
+To minimize the error introduced by ignoring words
+not in the vocabulary,
+the latter is expanded by adding words that still are too frequent
+to be ignored.
+
+The word count-cutoff to include words in the vocabulry is
+defined based on the following plot where words are sorted
+from most (left) to least (right) frequent.
+
+```{r}
+plot (sort (as.numeric (unknown), de=T), xlim=c(0,5000))
+abline (h=500, col="red")
+```
+
+The word count cutoff is set at 500:
+words with counts larger than 500 are included in the vocabulary.
+The following most frequent words that are not included in the
+vocabulry and consequently excluded from the predictor model are:
+
+```{r}
+subset (unknown, unknown>450 & unknown<500)
+```
+
+
+```{r, echo=FALSE}
+words2add <- subset (unknown, unknown>500)
+unique_2add <- dim (words2add)
+vocabul <- c (vocabul, rownames (words2add))
+unknown <- table (subset (unlist (token), !(unlist (token) %in% vocabul)))
+unique_notvocab2 <- dim (unknown)
+total_notvocab2 <- sum (unknown)
+goodtokens <- subset (unlist (token), (unlist (token) %in% vocabul))
+total_goodtokens <- length(goodtokens)
+counts1 <- table(goodtokens)
+unique_goodwords <- dim(counts1)
+hist (counts1, nclass=100)
+```
+
+The total number of tokens is `r total_token` which are `r unique_token` words.
+The english vocabulary included `r total_vocabul` unique words and
+`r unique_notvocab` unique words are not included in the vocabulary.
+A number of `r unique_2add` most frequent words not in vocabulary
+are added to the vocabulary so that `r unique_notvocab2` unique words
+are finally discarded.
+In total, `r unique_goodwords` unique words are present in the language
+and are present in 
+`r total_goodtokens` total tokens that are kept for the following analysis
+and predicting model:
+that means that `r total_notvocab2` total tokens are ignored,
+corresponding to `r 100 * total_notvocab2 / total_token` % of the
+total number of tokens.
+
+## Language coverage
+Some words apper much more frequently than others,
+meaning the 50% of language coverage can be reached
+by much less than 50% of the unique words.
+
+```{r}
+plot(cumsum(sort(counts1, decr=T))/total_goodtokens, xlab="num of unique words", ylab="language coverage")
+```
+
+`r sum(cumsum(sort(counts1, decr=T))/total_goodtokens < .5)` unique words,
+which are
+`r 100*sum(cumsum(sort(counts1, decr=T))/total_goodtokens < .5)/unique_goodwords`
+% of the total numer of unique words, cover 50% of the language;
+similarly,
+`r sum(cumsum(sort(counts1, decr=T))/total_goodtokens < .9)` unique words,
+which are
+`r 100*sum(cumsum(sort(counts1, decr=T))/total_goodtokens < .9)/unique_goodwords`
+% of the total numer of unique words, cover 90% of the language.
+
+If synonyms are collapsed into one word only,
+the total number of words would decrease and a smaller number of
+words would be required to cover the same amount of language.
+
