@@ -8,16 +8,18 @@ output: html_document
 This is the capstone project of the Coursera Data Science specilization,
 which aim is a model to predict the most probable word after
 a set of 2 or 3 words. The model calculates the most probable word
-based on sentences takne from
+based on sentences taken from
 - blogs
 - news
 - twitter
 
 ```{r echo=FALSE}
-setwd("/Users/Anita/coursera")
-library(stringr)
-library(gridExtra)
-library(VennDiagram)
+setwd ("~")
+library (stringr)
+library (grid)
+library (gridExtra)
+library (VennDiagram)
+library (wordcloud)
 ```
 
 ## Filtering data
@@ -94,44 +96,38 @@ Words are separated now by blanks,
 so sentenses are tokenized into words using blanks are separators.
 
 ```{r, echo=FALSE, cache=TRUE}
+resource <- c("blogs", "news", "twitter", "merged")
 token_b <- strsplit(line_b," ")
-total_token_b <- length (unlist (token_b))
 token_n <- strsplit(line_n," ")
-total_token_n <- length (unlist (token_n))
 token_t <- strsplit(line_t," ")
-total_token_t <- length (unlist (token_t))
+total_token <- c(length (unlist (token_b)), length (unlist (token_n)), length (unlist (token_t)))
 ```
 
 ## Words frequency
 The frequency of each word is calculated
 and the 100 most frequent words are listed:
 
-In blogs:
-
 ```{r, echo=FALSE, cache=TRUE}
 counts_b <- sort (table (unlist (token_b)), decr=T)
-unique_token_b <- dim (counts_b)
-head (counts_b, n=100)
-```
-
-In news:
-
-```{r, echo=FALSE, cache=TRUE}
 counts_n <- sort (table (unlist (token_n)), decr=T)
-unique_token_n <- dim (counts_n)
-head (counts_n, n=100)
-```
-
-In twitter:
-
-```{r, echo=FALSE, cache=TRUE}
 counts_t <- sort (table (unlist (token_t)), decr=T)
-unique_token_t <- dim (counts_t)
-head (counts_t, n=100)
+unique_token <- c(dim (counts_b), dim (counts_n), dim (counts_t))
+par(mfrow=c(1,3))
+wordcloud (row.names (counts_b[1:100]), as.numeric (counts_b[1:100]), colors=rainbow (100))
+title (main=resource[1])
+wordcloud (row.names (counts_n[1:100]), as.numeric (counts_n[1:100]), colors=rainbow (100))
+title (main=resource[2])
+wordcloud (row.names (counts_t[1:100]), as.numeric (counts_t[1:100]), colors=rainbow (100))
+title (main=resource[3])
+par(mfrow=c(1,1))
 ```
 
-Not surprisingly, they are all very common words
-and the most frequent is 'the'.
+Not surprisingly, they are all very common words.
+Overall, the most frequent is 'the' and it is interesting
+to note that the ranking of 'I' increase from 'news', 'blogs' to 'twitter',
+reflecting an increase of personal content.
+Consequently, the data set the model is trained on should come from
+a context similar to the context where the predictor will be applied.
 
 ### Similar frequent words in the data sets
 In the 3 data sets,
@@ -140,7 +136,7 @@ the most frequent words are similar.
 The top 10000 most frequent words from each of the 3 data sets and their
 overlap are shown in the following Venn diagram:
 
-```{r, echo=FALSE}
+```{r, echo=FALSE, cache=TRUE}
 grid.newpage ()
 grid.draw (venn.diagram (list (blogs=row.names (counts_b),
                                news=row.names (counts_n),
@@ -155,24 +151,23 @@ that is analyzed and used for the word predicting model.
 ```{r, echo=FALSE, cache=TRUE}
 line <- c (line_b, line_n, line_t)
 token <- strsplit (line," ")
-total_token <- length (unlist (token))
+total_token <- c (total_token, length (unlist (token)))
 counts <- sort (table (unlist (token)), decr=T)
-unique_token <- dim (counts)
+unique_token <- c (unique_token, dim (counts))
 ```
 
-The merged data set includes `r total_token` total tokens in
-`r unique_token` unique words.
+The merged data set includes `r total_token[4]` total tokens in
+`r unique_token[4]` unique words.
 
 In the following table,
 the total number of tokens in the 3 data sets are shown
 as well as the number of unique tokens, independent from their frequency.
 
 ```{r, echo=FALSE}
-grid.newpage ()
 grid.table (data.frame (
-  total = c (total_token_n, total_token_b, total_token_t, total_token),
-  unique = c (unique_token_n, unique_token_b, unique_token_t, unique_token),
-  row.names = c ("news", "blogs", "twitter", "merged")))
+  total = total_token,
+  unique = unique_token,
+  row.names = resource))
 ```
 
 ## English words
@@ -195,18 +190,18 @@ The words not in the vocabulary can be non-english words,
 misspelled words,
 names of persons or places.
 The most frequent words not in the vocabulry are shown here,
-to estimate what is the most relevant source of error
-that is introduced by ignoring them.
+to estimate what would be the most relevant source of error
+introduced by ignoring them or cutting them out of the predictor model.
 
 ```{r, echo=FALSE, cache=TRUE}
-unknown <- table (subset (unlist (token), !(unlist (token) %in% vocabul)))
-unique_notvocab <- dim (unknown)
-head (sort (unknown, de=T), n=100)
+unknown <- sort (table (subset (unlist (token), !(unlist (token) %in% vocabul))), de=T)
+head (unknown, n=100)
 ```
 
-The most frequent words not in vocabulary are technology related
-and the following words are either typos or names of people or,
-less frequent, companies.
+The most frequent words not in vocabulary are technology related,
+acronyms and contracted words;
+the following words not in vocabulary are either typos or
+names of people or companies.
 
 ### Expanding the vocabulary
 To minimize the error introduced by ignoring words
@@ -219,68 +214,79 @@ defined based on the following plot where words are sorted
 from most (left) to least (right) frequent.
 
 ```{r}
-plot (sort (as.numeric (unknown), de=T), xlim=c(0,5000))
-abline (h=1500, col="red")
+cutoff <- 1500
+plot (log (as.numeric (unknown)), xlim=c(0,5000), ylab="ln (counts)")
+abline (h=log (cutoff), col="red")
 ```
 
-The word count cutoff is set at 1500:
-words with counts larger than 1500 are included in the vocabulary.
-The following most frequent words that are not included in the
-vocabulry and consequently excluded from the predictor model are:
-
-```{r}
-subset (unknown, unknown>1450 & unknown<1500)
-```
-
+The word count cutoff is set at `r cutoff`:
+words with counts larger than `r cutoff` are included in the vocabulary.
+The following words are the top most frequent words that are not
+included in the expanded vocabulary
+and consequently excluded from the predictor model:
 
 ```{r, echo=FALSE}
-words2add <- subset (unknown, unknown>1500)
+subset (unknown, unknown>(cutoff-100) & unknown<cutoff)
+```
+
+
+```{r, echo=FALSE, cache=TRUE}
+words2add <- subset (unknown, unknown>cutoff)
 unique_2add <- dim (words2add)
+total_2add <- sum (words2add)
 vocabul <- c (vocabul, rownames (words2add))
 unknown <- table (subset (unlist (token), !(unlist (token) %in% vocabul)))
 unique_notvocab2 <- dim (unknown)
 total_notvocab2 <- sum (unknown)
 goodtokens <- subset (unlist (token), (unlist (token) %in% vocabul))
 total_goodtokens <- length (goodtokens)
-counts1 <- table (goodtokens)
+counts1 <- sort (table (goodtokens), decr=T)
 unique_goodwords <- dim (counts1)
-hist (counts1, nclass=100)
+
+my_hist <-hist (log2 (as.numeric (counts1)), labels=TRUE, xlab="word counts", main="Histogram of log2(word_counts)", axes=F)
+bins <- length (my_hist$counts)
+axis (side=1, at=c (1:bins)-0.5,
+      labels=c (1," "," "," "," ",2^5," "," "," "," ",2^10," "," "," "," ",2^15," "," "," "," ",2^20))
 ```
 
 ## Final figures
-The total number of tokens is `r total_token` which are `r unique_token` words.
-The english vocabulary included `r total_vocabul` unique words and
-`r unique_notvocab` unique words are not included in the vocabulary.
-A number of `r unique_2add` most frequent words not in vocabulary
-are added to the vocabulary so that `r unique_notvocab2` unique words
-are finally discarded.
+The total number of tokens is `r total_token[4]` which are `r unique_token[4]` unique words.
+The original english vocabulary included `r total_vocabul` unique words and
+`r unique_2add` unique words are later included in the vocabulary,
+to end up with a vocabulary including `r length (vocabul)` unique words.
+Consequently, `r unique_notvocab2` unique words are finally discarded from the data sets.
 In total, `r unique_goodwords` unique words are present in the language
-and are present in 
+and are represented in 
 `r total_goodtokens` total tokens that are kept for the following analysis
-and predicting model:
-that means that `r total_notvocab2` total tokens are ignored,
-corresponding to `r 100 * total_notvocab2 / total_token` % of the
+and the word predicting model.
+That means that `r unique_notvocab2` unique words present in the original data sets
+and represented by `r total_notvocab2` total tokens are ignored;
+they correspond to `r 100 * total_notvocab2 / total_token[4]` % of the
 total number of tokens.
 
 ## Language coverage
-Some words apper much more frequently than others,
+Some words appear much more frequently than others,
 meaning the 50% of language coverage can be reached
 by much less than 50% of the unique words.
 
-```{r}
-plot(cumsum(sort(counts1, decr=T))/total_goodtokens, xlab="num of unique words", ylab="language coverage")
+```{r, cache=TRUE}
+cumsum_counts1 <- cumsum (counts)
+plot (cumsum_counts1/total_goodtokens, xlab="num of unique words", ylab="language coverage")
+abline (h=0.5, col="green")
+abline (h=0.9, col="violet")
 ```
 
-`r sum(cumsum(sort(counts1, decr=T))/total_goodtokens < .5)` unique words,
+`r sum (cumsum_counts1/total_goodtokens < .5)` unique words,
 which are
-`r 100*sum(cumsum(sort(counts1, decr=T))/total_goodtokens < .5)/unique_goodwords`
+`r 100*sum (cumsum_counts1/total_goodtokens < .5)/unique_goodwords`
 % of the total numer of unique words, cover 50% of the language;
 similarly,
-`r sum(cumsum(sort(counts1, decr=T))/total_goodtokens < .9)` unique words,
+`r sum (cumsum_counts1/total_goodtokens < .9)` unique words,
 which are
-`r 100*sum(cumsum(sort(counts1, decr=T))/total_goodtokens < .9)/unique_goodwords`
+`r 100*sum (cumsum_counts1/total_goodtokens < .9)/unique_goodwords`
 % of the total numer of unique words, cover 90% of the language.
 
 If synonyms are collapsed into one word only,
 the total number of words would decrease and a smaller number of
 words would be required to cover the same amount of language.
+
