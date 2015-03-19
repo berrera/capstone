@@ -89,6 +89,7 @@ fileNames <- c ("en_US.blogs.txt", "en_US.news.txt", "en_US.twitter.txt")
 line_b <- parse_text (fileNames[1])
 line_n <- parse_text (fileNames[2])
 line_t <- parse_text (fileNames[3])
+total_sentence <- (length (line_b), length (line_n), length (line_t))
 ```
 
 ## Tokenization
@@ -150,6 +151,7 @@ that is analyzed and used for the word predicting model.
 
 ```{r, echo=FALSE, cache=TRUE}
 line <- c (line_b, line_n, line_t)
+total_sentence <- c (total_sentence, length (line))
 token <- strsplit (line," ")
 total_token <- c (total_token, length (unlist (token)))
 counts <- sort (table (unlist (token)), decr=T)
@@ -165,8 +167,9 @@ as well as the number of unique tokens, independent from their frequency.
 
 ```{r, echo=FALSE}
 grid.table (data.frame (
-  total = total_token,
-  unique = unique_token,
+  lines = total_sentence,
+  words = total_token,
+  unique_words = unique_token,
   row.names = resource))
 ```
 
