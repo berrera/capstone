@@ -14,8 +14,10 @@ based on sentences takne from
 - twitter
 
 ```{r echo=FALSE}
-setwd("/homebasel/biocomp/berreram")
+setwd("/Users/Anita/coursera")
 library(stringr)
+library(gridExtra)
+library(VennDiagram)
 ```
 
 ## Filtering data
@@ -36,10 +38,10 @@ Finally, numers are removed, still because we want to predict words.
 
 ```{r, echo=FALSE, cache=TRUE}
 parse_text <- function (infile) {
-  f <- file(infile, open="r")
-  line<-readLines(f, n = -1, warn = FALSE)
+  f <- file (infile, open="r")
+  line <- readLines(f, n = -1, warn = FALSE)
 
-  line <- tolower(line)
+  line <- tolower (line)
 
   line <- str_replace_all (line, "\\bit['’]s\\b", " it is ")
   line <- str_replace_all (line, "\\bim\\b", " i am ")
@@ -81,7 +83,7 @@ parse_text <- function (infile) {
   return (line)
 }
 
-fileNames <- c("en_US.blogs.txt", "en_US.news.txt", "en_US.twitter.txt")
+fileNames <- c ("en_US.blogs.txt", "en_US.news.txt", "en_US.twitter.txt")
 line_b <- parse_text (fileNames[1])
 line_n <- parse_text (fileNames[2])
 line_t <- parse_text (fileNames[3])
@@ -106,39 +108,81 @@ and the 100 most frequent words are listed:
 
 In blogs:
 
-```{r}
-counts_b <- table (unlist (token_b))
+```{r, echo=FALSE, cache=TRUE}
+counts_b <- sort (table (unlist (token_b)), decr=T)
 unique_token_b <- dim (counts_b)
-head (sort (counts_b, decr=T), n=100)
+head (counts_b, n=100)
 ```
 
 In news:
 
-```{r}
-counts_n <- table (unlist (token_n))
+```{r, echo=FALSE, cache=TRUE}
+counts_n <- sort (table (unlist (token_n)), decr=T)
 unique_token_n <- dim (counts_n)
-head (sort (counts_n, decr=T), n=100)
+head (counts_n, n=100)
 ```
 
 In twitter:
 
-```{r}
-counts_t <- table (unlist (token_t))
+```{r, echo=FALSE, cache=TRUE}
+counts_t <- sort (table (unlist (token_t)), decr=T)
 unique_token_t <- dim (counts_t)
-head (sort (counts_t, decr=T), n=100)
+head (counts_t, n=100)
 ```
 
 Not surprisingly, they are all very common words
 and the most frequent is 'the'.
 
+### Similar frequent words in the data sets
+In the 3 data sets,
+namely the sentences from (i) blogs, (ii) news and (iii) twitter,
+the most frequent words are similar.
+The top 10000 most frequent words from each of the 3 data sets and their
+overlap are shown in the following Venn diagram:
+
+```{r, echo=FALSE}
+grid.newpage ()
+grid.draw (venn.diagram (list (blogs=row.names (counts_b),
+                               news=row.names (counts_n),
+                               twitter=row.names (counts_t)), filename=NULL))
+```
+
+The overlap among the 3 data sets is more than 60% in the top 10000 words.
+
+In the followings, the 3 data sets are merged into a single data set
+that is analyzed and used for the word predicting model.
+
+```{r, echo=FALSE, cache=TRUE}
+line <- c (line_b, line_n, line_t)
+token <- strsplit (line," ")
+total_token <- length (unlist (token))
+counts <- sort (table (unlist (token)), decr=T)
+unique_token <- dim (counts)
+```
+
+The merged data set includes `r total_token` total tokens in
+`r unique_token` unique words.
+
+In the following table,
+the total number of tokens in the 3 data sets are shown
+as well as the number of unique tokens, independent from their frequency.
+
+```{r, echo=FALSE}
+grid.newpage ()
+grid.table (data.frame (
+  total = c (total_token_n, total_token_b, total_token_t, total_token),
+  unique = c (unique_token_n, unique_token_b, unique_token_t, unique_token),
+  row.names = c ("news", "blogs", "twitter", "merged")))
+```
+
 ## English words
 All words obtained after tokenizing are checked in an english dictionary
 to make sure they are properly spelled english words.
 
-```{r, echo=FALSE}
+```{r, echo=FALSE, cache=TRUE}
 vocabul_http <- "http://www-01.sil.org/linguistics/wordlists/english/wordlist/wordsEn.txt"
-vocabul <- tolower(as.character(read.table(vocabul_http)$V1))
-vocabul <- c(vocabul, "i")
+vocabul <- tolower (as.character (read.table (vocabul_http)$V1))
+vocabul <- c (vocabul, "i")
 total_vocabul <- length (unlist (vocabul))
 ```
 
@@ -154,8 +198,8 @@ The most frequent words not in the vocabulry are shown here,
 to estimate what is the most relevant source of error
 that is introduced by ignoring them.
 
-```{r}
-unknown<- table(subset(unlist(token), !(unlist(token) %in% vocabul)))
+```{r, echo=FALSE, cache=TRUE}
+unknown <- table (subset (unlist (token), !(unlist (token) %in% vocabul)))
 unique_notvocab <- dim (unknown)
 head (sort (unknown, de=T), n=100)
 ```
@@ -176,33 +220,34 @@ from most (left) to least (right) frequent.
 
 ```{r}
 plot (sort (as.numeric (unknown), de=T), xlim=c(0,5000))
-abline (h=500, col="red")
+abline (h=1500, col="red")
 ```
 
-The word count cutoff is set at 500:
-words with counts larger than 500 are included in the vocabulary.
+The word count cutoff is set at 1500:
+words with counts larger than 1500 are included in the vocabulary.
 The following most frequent words that are not included in the
 vocabulry and consequently excluded from the predictor model are:
 
 ```{r}
-subset (unknown, unknown>450 & unknown<500)
+subset (unknown, unknown>1450 & unknown<1500)
 ```
 
 
 ```{r, echo=FALSE}
-words2add <- subset (unknown, unknown>500)
+words2add <- subset (unknown, unknown>1500)
 unique_2add <- dim (words2add)
 vocabul <- c (vocabul, rownames (words2add))
 unknown <- table (subset (unlist (token), !(unlist (token) %in% vocabul)))
 unique_notvocab2 <- dim (unknown)
 total_notvocab2 <- sum (unknown)
 goodtokens <- subset (unlist (token), (unlist (token) %in% vocabul))
-total_goodtokens <- length(goodtokens)
-counts1 <- table(goodtokens)
-unique_goodwords <- dim(counts1)
+total_goodtokens <- length (goodtokens)
+counts1 <- table (goodtokens)
+unique_goodwords <- dim (counts1)
 hist (counts1, nclass=100)
 ```
 
+## Final figures
 The total number of tokens is `r total_token` which are `r unique_token` words.
 The english vocabulary included `r total_vocabul` unique words and
 `r unique_notvocab` unique words are not included in the vocabulary.
@@ -239,4 +284,3 @@ which are
 If synonyms are collapsed into one word only,
 the total number of words would decrease and a smaller number of
 words would be required to cover the same amount of language.
-
