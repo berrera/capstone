@@ -1,9 +1,4 @@
----
-title: "Data Science Capstone Project"
-author: "MB"
-date: "March 17, 2015"
-output: html_document
----
+# Data Science Milestone Report"
 
 This is the capstone project of the Coursera Data Science specilization,
 which aim is a model to predict the most probable word after
@@ -13,8 +8,12 @@ based on sentences taken from
 - news
 - twitter
 
+In this report,
+exploratory data analysis and preliminary results are shown,
+as well as the overall strategy to end up with the word predicting model.
+
 ```{r echo=FALSE}
-setwd ("~")
+setwd ("~/coursera")
 library (stringr)
 library (grid)
 library (gridExtra)
@@ -23,8 +22,6 @@ library (wordcloud)
 ```
 
 ## Filtering data
-In this section, sentences from blogs are used to instruct the model.
-
 First, all upper case characters are converted to lower case:
 in fact, the model proposed an upper case word if it is the
 first word of a sentence. In addition, names of persons or places
@@ -41,7 +38,7 @@ Finally, numers are removed, still because we want to predict words.
 ```{r, echo=FALSE, cache=TRUE}
 parse_text <- function (infile) {
   f <- file (infile, open="r")
-  line <- readLines(f, n = -1, warn = FALSE)
+  line <- readLines (f, n = -1, warn = FALSE)
 
   line <- tolower (line)
 
@@ -89,7 +86,7 @@ fileNames <- c ("en_US.blogs.txt", "en_US.news.txt", "en_US.twitter.txt")
 line_b <- parse_text (fileNames[1])
 line_n <- parse_text (fileNames[2])
 line_t <- parse_text (fileNames[3])
-total_sentence <- (length (line_b), length (line_n), length (line_t))
+total_sentence <- c(length (line_b), length (line_n), length (line_t))
 ```
 
 ## Tokenization
@@ -106,7 +103,7 @@ total_token <- c(length (unlist (token_b)), length (unlist (token_n)), length (u
 
 ## Words frequency
 The frequency of each word is calculated
-and the 100 most frequent words are listed:
+and the 100 most frequent words are shown in wordclouds:
 
 ```{r, echo=FALSE, cache=TRUE}
 counts_b <- sort (table (unlist (token_b)), decr=T)
@@ -198,7 +195,7 @@ introduced by ignoring them or cutting them out of the predictor model.
 
 ```{r, echo=FALSE, cache=TRUE}
 unknown <- sort (table (subset (unlist (token), !(unlist (token) %in% vocabul))), de=T)
-head (unknown, n=100)
+wordcloud (row.names (unknown[1:100]), as.numeric (unknown[1:100]), colors=rainbow (100))
 ```
 
 The most frequent words not in vocabulary are technology related,
@@ -232,6 +229,7 @@ and consequently excluded from the predictor model:
 subset (unknown, unknown>(cutoff-100) & unknown<cutoff)
 ```
 
+Histogram of word counts:
 
 ```{r, echo=FALSE, cache=TRUE}
 words2add <- subset (unknown, unknown>cutoff)
@@ -249,7 +247,7 @@ unique_goodwords <- dim (counts1)
 my_hist <-hist (log2 (as.numeric (counts1)), labels=TRUE, xlab="word counts", main="Histogram of log2(word_counts)", axes=F)
 bins <- length (my_hist$counts)
 axis (side=1, at=c (1:bins)-0.5,
-      labels=c (1," "," "," "," ",2^5," "," "," "," ",2^10," "," "," "," ",2^15," "," "," "," ",2^20))
+      labels=c (1," "," "," "," ",2^5," "," "," "," ",2^10," "," "," "," ",2^15," "," "," "," ",2^20," "," "))
 ```
 
 ## Final figures
@@ -272,7 +270,7 @@ Some words appear much more frequently than others,
 meaning the 50% of language coverage can be reached
 by much less than 50% of the unique words.
 
-```{r, cache=TRUE}
+```{r, cache=TRUE, echo=FALSE}
 cumsum_counts1 <- cumsum (counts)
 plot (cumsum_counts1/total_goodtokens, xlab="num of unique words", ylab="language coverage")
 abline (h=0.5, col="green")
@@ -293,3 +291,20 @@ If synonyms are collapsed into one word only,
 the total number of words would decrease and a smaller number of
 words would be required to cover the same amount of language.
 
+## 2gram
+The relation between words is here investigated by considering couples
+of consequtive words.
+
+```{r}
+make_grams <- function (l, n=2) {
+  t <- strsplit (l, " ")
+  num <- length (t)
+  grams <- character (0)
+  if (num >= n) {
+    for (i in 1:(num-n)) {
+      grams <- c (grams, cat (i:(i+n)))
+    }
+  }
+  return (grams)
+}
+```
