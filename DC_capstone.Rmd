@@ -13,12 +13,14 @@ exploratory data analysis and preliminary results are shown,
 as well as the overall strategy to end up with the word predicting model.
 
 ```{r echo=FALSE}
-setwd ("~/coursera")
+setwd ("~")
 library (stringr)
 library (grid)
 library (gridExtra)
+library (RColorBrewer)
 library (VennDiagram)
 library (wordcloud)
+library (ngram)
 ```
 
 ## Filtering data
@@ -291,20 +293,39 @@ If synonyms are collapsed into one word only,
 the total number of words would decrease and a smaller number of
 words would be required to cover the same amount of language.
 
-## 2gram
+## 1, 2 and 3 grams
 The relation between words is here investigated by considering couples
-of consequtive words.
+and riplets of consequtive words
+and linking them with the most frequent following word.
+That will be the basic frquency table of the word predictor model,
+to be used as a look-up table where the key is the last written triplet
+and the corresponding value is the predicted word.
+If the latter is not present in the 3-grams table,
+then the last wirtten duplet (couple of words) is used as a key.
+Finally, if the duplet is not present in the 2-grams table,
+then the last written word is the key for the 1-gram table.
+If the last written word is not in the vocabulary (the prediction
+chain is broken) or if no word has been written yet,
+the predicted word is the overall most frequent one, namely 'The'.
 
-```{r}
-make_grams <- function (l, n=2) {
-  t <- strsplit (l, " ")
-  num <- length (t)
-  grams <- character (0)
-  if (num >= n) {
-    for (i in 1:(num-n)) {
-      grams <- c (grams, cat (i:(i+n)))
-    }
-  }
-  return (grams)
-}
+```{r, cache=TRUE, echo=FALSE}
+#make_grams <- function (l, n) {
+#  t <- unlist (strsplit (l, " "))
+#  t <- subset (t, (t %in% vocabul))
+#  num <- length (t)
+#  grams <- character (0)
+#  if (num >= n) {
+#    for (i in 1:(num-n)) {
+#      grams <- c (grams, paste (t[i:(i+n)], collapse=" "))
+#    }
+#  }
+#  return (grams)
+#}
+
+#gram_2 <- sapply (line, make_grams, n=2)
+#counts_g2 <- sort (table (unlist (gram_2)), decr=T)
+f <- file ("ng2.txt", "w")
+sink (file=f, append=FALSE)
+print (ngram (paste (unlist (line), collapse=" ")), full=TRUE)
+close (f)
 ```
