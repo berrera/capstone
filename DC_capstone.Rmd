@@ -1,8 +1,8 @@
 # Data Science Milestone Report
 
-This is the capstone project of the Coursera Data Science specilization,
-which aim is a model to predict the most probable word after
-a set of 2 or 3 words. The model calculates the most probable word
+This is the capstone project of the Coursera Data Science specialization,
+whose aim is a model to predict the most probable word after
+a set of 2 or 3 words. The model calculates the most probable next word
 based on sentences taken from
 - blogs
 - news
@@ -33,9 +33,11 @@ which is aimed at predicting common frequent words.
 Then, all english-specific compressions, such as isn't or gonna, are expanded.
 
 Similarly, technology-related words, like e-mail or i-phone,
-are converted to the compact for, like email and iphone.
+are converted to the compact form, like email and iphone.
 
-Finally, numers are removed, still because we want to predict words.
+Numbers are removed, still because we want to predict words.
+
+Finally, word separators such as comma and period, are converted to blanks.
 
 ```{r, echo=FALSE, cache=TRUE}
 parse_text <- function (infile) {
@@ -161,8 +163,9 @@ The merged data set includes `r total_token[4]` total tokens in
 `r unique_token[4]` unique words.
 
 In the following table,
-the total number of tokens in the 3 data sets are shown
-as well as the number of unique tokens, independent from their frequency.
+the total number of tokens (words) in the 3 data sets are shown
+as well as the number of unique tokens (unique words),
+which are independent from their frequency.
 
 ```{r, echo=FALSE}
 grid.table (data.frame (
@@ -198,7 +201,7 @@ title (main="Most frequent words not in vocabulary")
 title (sub="The vocabulary should be expanded to incorporate some of them")
 ```
 
-The most frequent words not in vocabulary are technology related,
+The most frequent words not in the vocabulary are technology related,
 acronyms and contracted words;
 the following words not in vocabulary are either typos or
 names of people or companies.
@@ -217,7 +220,7 @@ cutoff <- 1500
 plot (log (as.numeric (unknown)), xlim=c(0,5000), ylab="ln (counts)")
 abline (h=log (cutoff), col="red")
 title (main="Most frequent words not in vocabulary (ranked from left to right)")
-title (sub="The vocabulary should be expanded to incorporate the most frequent one (above the red line)")
+title (sub="Incorporation of the most frequent words (above the red line) in the vocabulary")
 ```
 
 The word count cutoff is set at `r cutoff`:
@@ -245,6 +248,9 @@ total_goodtokens <- length (goodtokens)
 counts1 <- sort (table (goodtokens), decr=T)
 unique_goodwords <- dim (counts1)
 ```
+Each word is present in the data set a number of times (word count)
+and the following histogram shows the distribution of those counts.
+Frequency is the numbers of words with the corresponding count:
 
 ```{r, echo=FALSE, cache=TRUE}
 par (ps=18)
@@ -255,6 +261,9 @@ axis (side=1, at=c (1, 6, 11, 16, 21)-0.5,
       labels=c ("1", "32", "1024", "32768", "1048576"))
 par (ps=18)
 ```
+About 13.000 words are represented only once in the data set
+and will not probably be very useful for the predictor model,
+because of their low frequency.
 
 ### Profanity filtering
 Profanity filtering is implicit in limiting the model to words that are
@@ -266,7 +275,7 @@ The original english vocabulary included `r total_vocabul` unique words and
 `r unique_2add` unique words are later included in the vocabulary,
 to end up with a vocabulary including `r length (vocabul)` unique words.
 Consequently, `r unique_notvocab2` unique words are finally discarded from the data sets.
-In total, `r unique_goodwords` unique words are present in the language
+In total, `r unique_goodwords` unique words are present in the data set and in the vocabulary
 and are represented in 
 `r total_goodtokens` total tokens that are kept for the following analysis
 and the word predicting model.
@@ -277,7 +286,7 @@ total number of tokens.
 
 ## Language coverage
 Some words appear much more frequently than others,
-meaning the 50% of language coverage can be reached
+meaning the 50% of language (= data set) coverage can be reached
 by much less than 50% of the unique words.
 
 ```{r, cache=TRUE, echo=FALSE}
@@ -290,7 +299,7 @@ abline (h=0.9, col="violet")
 `r sum (cumsum_counts1/total_goodtokens < .5)` unique words,
 which are
 `r 100*sum (cumsum_counts1/total_goodtokens < .5)/unique_goodwords`
-% of the total numer of unique words, cover 50% of the language;
+% of the total numer of unique words, cover 50% of the language (data set);
 similarly,
 `r sum (cumsum_counts1/total_goodtokens < .9)` unique words,
 which are
@@ -303,9 +312,9 @@ words would be required to cover the same amount of language.
 
 ## 1, 2 and 3 grams
 The relation between words is here investigated by considering couples
-and riplets of consequtive words
+and triplets of consequtive words
 and linking them with the most frequent following word.
-That will be the basic frquency table of the word predictor model,
+That will be the basic frequency table of the word predictor model,
 to be used as a look-up table where the key is the last written triplet
 and the corresponding value is the predicted word.
 If the latter is not present in the 3-grams table,
